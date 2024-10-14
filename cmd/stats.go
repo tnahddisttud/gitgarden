@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"time"
 
@@ -9,9 +10,11 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-const outOfRange int = 99999
-const daysIn6Months int = 183
-const weeksInLastSixMonths int = 26
+const (
+	outOfRange            = 99999
+	daysInSixMonths       = 183
+	weeksInLastSixMonths  = 26
+)
 
 type column []int
 
@@ -21,125 +24,109 @@ func Stats(user string) {
 }
 
 func processRepos(user string) map[int]int {
-	dotfile := getDotFilePath()
-	repos := extractExistingRepos(dotfile)
-	daysInMap := daysIn6Months
+	repos := extractExistingRepos(getDotFilePath())
+	commits := make(map[int]int, daysInSixMonths)
 
-	commits := make(map[int]int, daysInMap)
-	for i := daysInMap; i >= 0; i-- {
+	for i := 0; i <= daysInSixMonths; i++ {
 		commits[i] = 0
 	}
 
 	for _, path := range repos {
-		commits = fillCommits(path, user, commits)
+		fillCommits(path, user, commits)
 	}
 
 	return commits
 }
 
-func fillCommits(path string, user string, commits map[int]int) map[int]int {
+func fillCommits(path, user string, commits map[int]int) {
 	repo, err := git.PlainOpen(path)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	ref, err := repo.Head()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	iterator, err := repo.Log(&git.LogOptions{From: ref.Hash()})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	offset := calculateOffset()
 
-	err = iterator.ForEach(func(c *object.Commit) error {
-		daysAgo := countDaysSince(c.Author.When) + offset
+	iterator.ForEach(func(c *object.Commit) error {
 		if c.Author.Email != user {
 			return nil
 		}
-
+		daysAgo := countDaysSince(c.Author.When) + offset
 		if daysAgo != outOfRange {
 			commits[daysAgo]++
 		}
-
 		return nil
 	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	return commits
 }
 
 func calculateOffset() int {
-	var offset int
-	weekday := time.Now().Weekday()
-
-	switch weekday {
+	switch time.Now().Weekday() {
 	case time.Sunday:
-		offset = 7
+		return 7
 	case time.Monday:
-		offset = 6
+		return 6
 	case time.Tuesday:
-		offset = 5
+		return 5
 	case time.Wednesday:
-		offset = 4
+		return 4
 	case time.Thursday:
-		offset = 3
+		return 3
 	case time.Friday:
-		offset = 2
-	case time.Saturday:
-		offset = 1
+		return 2
+	default:
+		return 1
 	}
-	return offset
 }
 
 func getBeginningOfDay(t time.Time) time.Time {
-	year, month, day := t.Date()
-	startOfDay := time.Date(year, month, day, 0, 0, 0, 0, t.Location())
-	return startOfDay
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
 func countDaysSince(date time.Time) int {
 	days := 0
 	now := getBeginningOfDay(time.Now())
+
 	for date.Before(now) {
-		date = date.Add(time.Hour * 24)
+		date = date.Add(24 * time.Hour)
 		days++
-		if days > daysIn6Months {
+		if days > daysInSixMonths {
 			return outOfRange
 		}
 	}
+
 	return days
 }
 
 func printCommitGarden(commits map[int]int) {
-	keys := sortMapsToSlices(commits)
+	keys := sortedKeys(commits)
 	cols := buildColumns(keys, commits)
 	printCells(cols)
 }
 
-func sortMapsToSlices(commits map[int]int) []int {
-	var keys []int
-
+func sortedKeys(commits map[int]int) []int {
+	keys := make([]int, 0, len(commits))
 	for k := range commits {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-
 	return keys
 }
 
 func buildColumns(keys []int, commits map[int]int) map[int]column {
 	cols := make(map[int]column)
-	col := column{}
+	var col column
 
 	for _, k := range keys {
-		week := int(k / 7)
+		week := k / 7
 		dayInWeek := k % 7
 
 		if dayInWeek == 0 {
@@ -166,90 +153,72 @@ func printCells(cols map[int]column) {
 			}
 
 			if col, ok := cols[i]; ok {
-				if i == 0 && j == calculateOffset()-1 {
-					printCell(col[j], true)
-					continue
-				} else {
-					if len(col) > j {
-						printCell(col[j], false)
-						continue
-					}
-				}
+				printCell(col, j, i == 0 && j == calculateOffset()-1)
+			} else {
+				printCell(nil, j, false)
 			}
-
-			printCell(0, false)
 		}
-		fmt.Printf("\n")
+		fmt.Println()
 	}
 }
 
-
 func printMonths() {
-	week := getBeginningOfDay(time.Now()).Add(-(time.Duration(daysIn6Months) * time.Hour * 24))
+	week := getBeginningOfDay(time.Now()).Add(-time.Duration(daysInSixMonths) * 24 * time.Hour)
 	month := week.Month()
-	fmt.Printf("         ")
+	fmt.Print("         ")
+
 	for {
 		if week.Month() != month {
 			fmt.Printf("%s ", week.Month().String()[:3])
 			month = week.Month()
 		} else {
-			fmt.Printf("    ")
+			fmt.Print("    ")
 		}
 
-		week = week.Add(7 * time.Hour * 24)
+		week = week.Add(7 * 24 * time.Hour)
 		if week.After(time.Now()) {
 			break
 		}
 	}
-	fmt.Printf("\n")
+	fmt.Println()
 }
-
 
 func printDayCols(day int) {
-	out := "     "
 	switch day {
 	case 1:
-		out = " Mon "
+		fmt.Print(" Mon ")
 	case 3:
-		out = " Wed "
+		fmt.Print(" Wed ")
 	case 5:
-		out = " Fri "
+		fmt.Print(" Fri ")
+	default:
+		fmt.Print("     ")
 	}
-
-	fmt.Printf(out)
 }
 
-
-
-func printCell(val int, today bool) {
-    escape := "\033[0;37;30m"
-    switch {
-    case val > 0 && val < 5:
-        escape = "\033[1;30;47m"
-    case val >= 5 && val < 10:
-        escape = "\033[1;30;43m"
-    case val >= 10:
-        escape = "\033[1;30;42m"
-    }
-
-    if today {
-        escape = "\033[1;37;45m"
-    }
-
-    if val == 0 {
-        fmt.Printf(escape + "  - " + "\033[0m")
-        return
-    }
-
-    str := "  %d "
-    switch {
-    case val >= 10:
-        str = " %d "
-    case val >= 100:
-        str = "%d "
-    }
-
-    fmt.Printf(escape+str+"\033[0m", val)
+func printCell(col column, day int, today bool) {
+	var escape string
+	if col == nil || len(col) <= day {
+		escape = "\033[48;5;235;38;5;235m  - "
+	} else {
+		val := col[day]
+		switch {
+		case today:
+			escape = "\033[48;5;167;38;5;229m"
+		case val == 0:
+			escape = "\033[48;5;235;38;5;235m"
+		case val <= 3:
+			escape = "\033[48;5;142;38;5;235m"
+		case val <= 6:
+			escape = "\033[48;5;108;38;5;235m"
+		case val <= 9:
+			escape = "\033[48;5;109;38;5;235m"
+		default:
+			escape = "\033[48;5;175;38;5;235m"
+		}
+		fmt.Printf(escape+" %2d \033[0m", val)
+		return
+	}
+	fmt.Print(escape + "\033[0m")
 }
-
 
