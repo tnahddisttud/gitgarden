@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"bufio"
-	"io"
 	"log"
 	"os"
-	"os/user"
 	"slices"
 	"strings"
 )
@@ -56,15 +53,6 @@ func scanFoldersRecursively(folders []string, folder string) []string {
 	return folders
 }
 
-func getDotFilePath() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	pathToDotfile := usr.HomeDir + "/.gitgarden"
-	return pathToDotfile
-}
 
 func saveReposInFile(repos []string, dotfile string) {
 	existingRepos := extractExistingRepos(dotfile)
@@ -72,23 +60,6 @@ func saveReposInFile(repos []string, dotfile string) {
 	updateReposInFile(allRepos, dotfile)
 }
 
-func extractExistingRepos(filePath string) []string {
-	f := openOrCreate(filePath)
-	defer f.Close()
-
-	var lines []string
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		if err != io.EOF {
-			panic(err)
-		}
-	}
-	return lines
-}
 
 func openOrCreate(filePath string) *os.File {
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0755)
