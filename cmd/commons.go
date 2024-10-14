@@ -1,10 +1,9 @@
 package cmd
 
 import (
+	"bufio"
 	"log"
 	"os/user"
-	"bufio"
-	"io"
 )
 
 func getDotFilePath() string {
@@ -27,10 +26,10 @@ func extractExistingRepos(filePath string) []string {
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
+
 	if err := scanner.Err(); err != nil {
-		if err != io.EOF {
-			panic(err)
-		}
+		panic(err) // No need to check for EOF, Scanner doesn't return io.EOF
 	}
+
 	return lines
 }

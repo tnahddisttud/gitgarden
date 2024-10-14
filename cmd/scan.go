@@ -60,14 +60,12 @@ func saveReposInFile(repos []string, dotfile string) {
 	updateReposInFile(allRepos, dotfile)
 }
 
-
 func openOrCreate(filePath string) *os.File {
-	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0755)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND, 0644)
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			_, err = os.Create(filePath)
-
+			f, err = os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 			if err != nil {
 				panic(err)
 			}
@@ -75,8 +73,11 @@ func openOrCreate(filePath string) *os.File {
 			panic(err)
 		}
 	}
+
 	return f
 }
+
+
 
 func appendRepos(newRepos []string, existingRepos []string) []string {
 	var result []string
