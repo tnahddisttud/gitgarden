@@ -53,7 +53,6 @@ func scanFoldersRecursively(folders []string, folder string) []string {
 	return folders
 }
 
-
 func saveReposInFile(repos []string, dotfile string) {
 	existingRepos := extractExistingRepos(dotfile)
 	allRepos := appendRepos(repos, existingRepos)
@@ -76,8 +75,6 @@ func openOrCreate(filePath string) *os.File {
 
 	return f
 }
-
-
 
 func appendRepos(newRepos []string, existingRepos []string) []string {
 	var result []string
