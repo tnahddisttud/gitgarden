@@ -1,7 +1,12 @@
 # gitgarden
 Create a contribution graph of local git commits.
 
+![gitgarden-graph](https://github.com/user-attachments/assets/a1e8b418-cc9c-4a73-a2d5-af05dc99825a)
+
+
 gitgarden is a cli tool lets you create github like commit graph for your local git projects. It utilizes the go-git package to to interact with git for fetching the commit details and is inspired by @flaviocope's work. The commit graph is displayed in gruvbox theme, it may support multiple themes in future.
+
+
 
 ### installation
 ---
@@ -12,6 +17,7 @@ To install `gitgarden` ensure that you have go installed in your computer. There
     ```bash
     curl -sSL https://raw.githubusercontent.com/tnahddisttud/gitgarden/main/install.sh | bash
     ```
+
 
 ### usage
 ---
@@ -31,6 +37,8 @@ To print the commit graph on your terminal, use the following command:
 ```bash
 gitgarden -email "your@github.email"
 ```
+
+
 ### future plans
 ---
 Would love to implement the following features:
